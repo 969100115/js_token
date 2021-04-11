@@ -15,4 +15,6 @@ public class AccessTokenVO {
 
     Integer expiresIn;
 
+
+
 }

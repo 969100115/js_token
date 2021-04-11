@@ -6,8 +6,12 @@ import com.weixin.sdk.bean.AccessTokenVO;
 import com.weixin.sdk.bean.SignatureVO;
 import com.weixin.sdk.bean.TicketVO;
 import com.weixin.sdk.common.SecuritySHA1Utils;
+import com.weixin.sdk.common.exception.asserts.Assert;
 import com.weixin.sdk.http.okhttp.Okhttp;
+import com.weixin.sdk.http.response.ResultEnum;
 import com.weixin.sdk.service.SDKService;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -20,42 +24,56 @@ import org.springframework.stereotype.Service;
 @Service
 public class SDKServiceImpl implements SDKService {
 
-    String appId;
-    String secret;
+    String appId = "wx58380c3983085a12";
+    String secret = "11743b883916368dd073bc0f3c8e6f09";
+
+    @Autowired
+    SDKService sdkService;
 
     @Override
-    @Cacheable(value = {"accessToken"},key = "targetClass + methodName +#p0")
-    public AccessTokenVO getAccessToken() {
+    public AccessTokenVO refreshAccessToken() {
         String result = Okhttp.builder(true)
                 .url("https://api.weixin.qq.com/cgi-bin/token")
                 .urlParam("grant_type","client_credential")
                 .urlParam("appid",appId)
                 .urlParam("secret",secret)
                 .get().excut();
-
-        JSONObject jsonObject = JSONObject.parseObject(result);
         AccessTokenVO accessTokenVO = JSONObject.parseObject(result,AccessTokenVO.class);
+        if (StringUtils.isBlank(accessTokenVO.getAccessToken())){
+            Assert.defaultAssert(ResultEnum.ACCESS_TOKEN_ERROR,result);
+        }
         return accessTokenVO;
+    }
 
+    @Cacheable(value = "auth",key = "'accesstoken'")
+    public String getAccessToken(){
+        return refreshAccessToken().getAccessToken();
     }
 
     @Override
+    @Cacheable(value = "auth",key = "'ticket'")
     public TicketVO getTicket() {
-        String accessToken = "";
+        String accessToken = sdkService.getAccessToken();
+        if (StringUtils.isBlank(accessToken)){
+            Assert.defaultAssert(ResultEnum.ACCESS_TOKEN_ERROR);
+        }
         String result = Okhttp.builder(true)
                 .url("https://api.weixin.qq.com/cgi-bin/ticket/getticket")
                 .urlParam("type","jsapi")
                 .urlParam("access_token",accessToken)
                 .get().excut();
         TicketVO ticketVO = JSONObject.parseObject(result,TicketVO.class);
+        if (StringUtils.isBlank(ticketVO.getTicket())){
+            Assert.defaultAssert(ResultEnum.TICKET_ERROR,result);
+        }
         return ticketVO;
     }
 
     @Override
-    public SignatureVO getSignature(String url) throws Exception {
+    public SignatureVO getSignature(String url){
         Integer timestamp = (int)(System.currentTimeMillis() / 1000);
         String noncestr = MD5.create().digestHex(timestamp.toString());
-        String ticket = "";
+        String ticket = sdkService.getTicket().getTicket();
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append("jsapi_ticket=")
                 .append(ticket)
@@ -66,7 +84,13 @@ public class SDKServiceImpl implements SDKService {
                 .append("&url=")
                 .append(url);
 
-        String signature = SecuritySHA1Utils.shaEncode(stringBuilder.toString());
+        String signature = null;
+        try {
+            signature = SecuritySHA1Utils.shaEncode(stringBuilder.toString());
+        } catch (Exception e) {
+            Assert.defaultAssert(ResultEnum.ENCRYPT_ERROR,stringBuilder.toString());
+        }
+
         SignatureVO signatureVO = new SignatureVO(timestamp.toString(),noncestr,signature);
         return signatureVO;
     }

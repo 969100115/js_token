@@ -27,6 +27,10 @@ public enum ResultEnum {
     SUCCESS(200,"操作成功"),
     FAIL(400,"操作失败"),
     ERROR(500,"服务异常"),
+    ACCESS_TOKEN_ERROR(501,"accessToken获取失败"),
+
+    TICKET_ERROR(502,"ticket获取失败"),
+    ENCRYPT_ERROR(503,"加密失败"),
 
     PARAMETER_ERROR(1201,"请求参数异常"),
 

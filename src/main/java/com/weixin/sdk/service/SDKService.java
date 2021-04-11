@@ -12,9 +12,10 @@ import com.weixin.sdk.bean.TicketVO;
  */
 public interface SDKService {
 
-    AccessTokenVO getAccessToken();
+    AccessTokenVO refreshAccessToken();
 
     TicketVO getTicket();
 
+    String getAccessToken();
     SignatureVO getSignature(String url) throws Exception;
 }
