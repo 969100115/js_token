@@ -10,6 +10,8 @@ import com.weixin.sdk.common.exception.asserts.Assert;
 import com.weixin.sdk.http.okhttp.Okhttp;
 import com.weixin.sdk.http.response.ResultEnum;
 import com.weixin.sdk.service.SDKService;
+import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Service;
  * @phone 17621847037
  */
 @Service
+@Slf4j
 public class SDKServiceImpl implements SDKService {
 
     String appId = "wx58380c3983085a12";
@@ -45,18 +48,21 @@ public class SDKServiceImpl implements SDKService {
         return accessTokenVO;
     }
 
-    @Cacheable(value = "auth",key = "'accesstoken'")
+    @Override
     public String getAccessToken(){
-        return refreshAccessToken().getAccessToken();
+        String accessToken = refreshAccessToken().getAccessToken();
+        log.info("refresh AccessToken ,accessToken:{}",accessToken);
+        return accessToken;
+
     }
 
     @Override
-    @Cacheable(value = "auth",key = "'ticket'")
-    public TicketVO getTicket() {
+    public TicketVO refreshTicket() {
         String accessToken = sdkService.getAccessToken();
         if (StringUtils.isBlank(accessToken)){
             Assert.defaultAssert(ResultEnum.ACCESS_TOKEN_ERROR);
         }
+        log.info("ticket get AccessToken,accessToken :{} ",accessToken);
         String result = Okhttp.builder(true)
                 .url("https://api.weixin.qq.com/cgi-bin/ticket/getticket")
                 .urlParam("type","jsapi")
@@ -70,10 +76,19 @@ public class SDKServiceImpl implements SDKService {
     }
 
     @Override
+    @Cacheable(value = "auth",key = "'ticket'")
+    public String getTicket(){
+        String ticket = refreshTicket().getTicket();
+        log.info("get ticket ,ticket:{}",ticket);
+        return ticket;
+    }
+
+    @Override
     public SignatureVO getSignature(String url){
         Integer timestamp = (int)(System.currentTimeMillis() / 1000);
         String noncestr = MD5.create().digestHex(timestamp.toString());
-        String ticket = sdkService.getTicket().getTicket();
+        String ticket = sdkService.getTicket();
+        log.info("signature get ticket,ticket :{} ",ticket);
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append("jsapi_ticket=")
                 .append(ticket)

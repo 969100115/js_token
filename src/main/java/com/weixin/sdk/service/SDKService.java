@@ -14,7 +14,9 @@ public interface SDKService {
 
     AccessTokenVO refreshAccessToken();
 
-    TicketVO getTicket();
+    TicketVO refreshTicket();
+
+    String getTicket();
 
     String getAccessToken();
     SignatureVO getSignature(String url) throws Exception;
